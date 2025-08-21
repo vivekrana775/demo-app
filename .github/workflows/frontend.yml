@@ -1,0 +1,49 @@
+name: Next.js CI/CD Frontend
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    strategy:
+      matrix:
+        node-version: [18.x]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "yarn"
+
+      - name: Flush logs of pm2
+        run: pm2 flush
+
+      - name: Install Yarn
+        run: npm install -g yarn
+
+      - name: Set up .env file
+        run: |
+          touch .env
+          echo "${{ secrets.PROD_ENV_FILE }}" > .env
+
+      - run: yarn
+
+      - run: yarn run build
+
+      - name: Install pm2
+        run: npm install -g pm2
+
+      - name: Delete previous pm2
+        run: pm2 delete next-app
+
+      - run: pm2 start npm --name "next-app" -- start
+
+      - name: Clean up build artifacts
+        run: |
+          rm -rf .cache
